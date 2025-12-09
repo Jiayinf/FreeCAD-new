@@ -176,9 +176,8 @@ private:
 
     //12.08 新增：
     SbVec3f m_prevDraggerWorldPos;    // 上一帧拖动器原点的世界坐标
-    SbVec3f m_stepTranslationDelta;   // 本次帧相对于上一帧的位移（世界坐标）
     SbVec3f m_totalTranslationDelta;  // 从拖动开始到当前的总位移（世界坐标）
-    bool m_hasPrevDraggerWorldPos;    // 是否已经有上一帧坐标
+    SbVec3f m_pastTotalTranslationDelta;  // 从拖到开始到上一个平移方向的总位移
     // 累积的总位移（世界坐标）
 
 };

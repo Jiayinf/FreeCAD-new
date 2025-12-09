@@ -183,6 +183,7 @@ bool ViewProviderDragger::setEdit(int ModNum)
         Gui::Control().showDialog(task);
     }
     m_totalTranslationDelta.setValue(0.0f, 0.0f, 0.0f);
+    m_pastTotalTranslationDelta.setValue(0.0f, 0.0f, 0.0f);
     m_lastTranslationDelta.setValue(0.0f, 0.0f, 0.0f);
     m_hasLastTranslationAxis = false;
     m_lastTranslationAxis = -1;
@@ -198,7 +199,6 @@ void ViewProviderDragger::unsetEdit(int ModNum)
     cleanupTempGeometry();
     m_bIsDragging = false;
 
-    m_hasPrevDraggerWorldPos = false;  // 新增：下次拖动重新开始计
 
     if (csysDragger) {
         pcTransform->translation.disconnect(&csysDragger->translation);
@@ -441,9 +441,11 @@ void ViewProviderDragger::updatePlacementFromDragger(ViewProviderDragger* sudoTh
         }
 
         // 如果移动的轴方向改变了，重新设置新的
-        else if (currentAxis != sudoThis->m_lastTranslationAxis) {
+        else {
             sudoThis->m_lastTranslationDelta = transDelta;
-            sudoThis->m_totalTranslationDelta = transDelta;
+            sudoThis->m_pastTotalTranslationDelta += sudoThis->m_totalTranslationDelta;
+            sudoThis->m_totalTranslationDelta.setValue(0.0f, 0.0f, 0.0f);
+            sudoThis->m_totalTranslationDelta += transDelta;
             sudoThis->m_lastTranslationAxis = currentAxis;
             sudoThis->m_hasLastTranslationAxis = true;
             // m_hasLastTranslationAxis 已经是 true，不用改
@@ -473,9 +475,6 @@ void ViewProviderDragger::updatePlacementFromDragger(ViewProviderDragger* sudoTh
             sudoThis->m_startLocalToWorldMat = draggerIn->getStartMotionMatrix();  // 初始全局变换
             sudoThis->m_bIsDragging = true;
 
-            //// 12.08 新增：拖动一开始时，总位移清零，上一帧标记清空
-            //sudoThis->m_totalTranslationDelta.setValue(0.0f, 0.0f, 0.0f);
-            sudoThis->m_hasPrevDraggerWorldPos = false;
         }
 
         // 7. 根据拖动类型更新辅助图形
@@ -639,13 +638,8 @@ void ViewProviderDragger::initTempGeometry()
     // 重置累积的位移、上次位移轴等数据
     this->m_lastTranslationDelta.setValue(0.0f, 0.0f, 0.0f);
     this->transDelta.setValue(0.0f, 0.0f, 0.0f);
-    this->m_lastTranslationAxis = -1;
-    this->m_hasLastTranslationAxis = false;
 
-    // 12.08 重置拖动器世界坐标相关
-    this->m_prevDraggerWorldPos.setValue(0.0f, 0.0f, 0.0f);
-    this->m_stepTranslationDelta.setValue(0.0f, 0.0f, 0.0f);
-    this->m_hasPrevDraggerWorldPos = false;
+
 }
 
 void ViewProviderDragger::cleanupTempGeometry()
@@ -708,33 +702,17 @@ void ViewProviderDragger::updateTranslationGeometry(SoFCCSysDragger* draggerIn)
     SbVec3f currentGlobalPos;
     m_currentLocalToWorldMat.multVecMatrix(origin, currentGlobalPos);
 
-    //SbVec3f stepDelta(0.0f, 0.0f, 0.0f);
-    //if (!m_hasPrevDraggerWorldPos) {
-    //    // 第一次更新，没有上一帧，单次位移视为 0
-    //    m_prevDraggerWorldPos = currentGlobalPos;
-    //    m_hasPrevDraggerWorldPos = true;
-    //}
-    //else {
-    //    stepDelta = currentGlobalPos - m_prevDraggerWorldPos;
-    //    m_prevDraggerWorldPos = currentGlobalPos;
-    //}
-
-    //// 把单次位移和总位移保存下来，方便调试或其它逻辑使用
-    //m_stepTranslationDelta = stepDelta;
-    //m_totalTranslationDelta += stepDelta;
 
     // 用当前终点倒推起点
-    SbVec3f lineStartGlobalPos = currentGlobalPos - 2 * m_totalTranslationDelta;
+    SbVec3f lineStartGlobalPos =
+        currentGlobalPos - m_pastTotalTranslationDelta - 2 * m_totalTranslationDelta;
     
-    SbVec3f lineEndGlobalPos = currentGlobalPos - m_totalTranslationDelta;
+    SbVec3f lineEndGlobalPos =
+        currentGlobalPos - m_pastTotalTranslationDelta - m_totalTranslationDelta;
 
     // 3. 设置轨迹线顶点（通过 pVtx 访问 vertex，而非直接访问 SoNode）
     pVtx->vertex.set1Value(0, lineStartGlobalPos);  // 拖动起点（全局）
     pVtx->vertex.set1Value(1, lineEndGlobalPos);    // 拖动当前点（全局）
-
-    ////Debug
-    //pVtx->vertex.set1Value(0, SbVec3f(1000, 0, 0));
-    //pVtx->vertex.set1Value(1, SbVec3f(2000, 0, 0));
 
     // 线集参数设置
     m_pTranslationLine->numVertices.setNum(1);
@@ -742,11 +720,8 @@ void ViewProviderDragger::updateTranslationGeometry(SoFCCSysDragger* draggerIn)
 
     // 轨迹距离计算（全局坐标两点距离）
     float distance = (currentGlobalPos - startGlobalPos).length();
-    QString dimText = QString::fromUtf8("Drag Distance: %1 mm \nTotal Δ = (%2, %3, %4)")
-                          .arg(distance, 0, 'f', 3)
-                          .arg(m_totalTranslationDelta[0], 0, 'f', 3)
-                          .arg(m_totalTranslationDelta[1], 0, 'f', 3)
-                          .arg(m_totalTranslationDelta[2], 0, 'f', 3);
+    QString dimText = QString::fromUtf8("Drag Distance: %1 mm ")
+                          .arg(distance, 0, 'f', 3);
     m_pDimensionText->string.setValue(dimText.toUtf8().constData());
 
     // 文本位置：全局轨迹中点 + 向上偏移5mm
