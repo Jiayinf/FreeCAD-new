@@ -719,7 +719,18 @@ void ViewProviderDragger::updateTranslationGeometry(SoFCCSysDragger* draggerIn)
     m_pTranslationLine->numVertices.set1Value(0, 2);
 
     // 轨迹距离计算（全局坐标两点距离）
-    float distance = (currentGlobalPos - startGlobalPos).length();
+    SbVec3f delta = (lineEndGlobalPos - lineStartGlobalPos);
+    float distance = delta.length();
+    if (m_lastTranslationAxis == 0 && delta[0] < 0) {
+        distance = -distance;
+    }
+    else if (m_lastTranslationAxis == 1 && delta[1] < 0) {
+        distance = -distance;
+    }
+    else if (m_lastTranslationAxis == 2 && delta[2] < 0) {
+        distance = -distance;
+    }
+
     QString dimText = QString::fromUtf8("Drag Distance: %1 mm ")
                           .arg(distance, 0, 'f', 3);
     m_pDimensionText->string.setValue(dimText.toUtf8().constData());
