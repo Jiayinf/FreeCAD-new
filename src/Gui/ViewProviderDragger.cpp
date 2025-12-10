@@ -53,19 +53,7 @@ PROPERTY_SOURCE(Gui::ViewProviderDragger, Gui::ViewProviderDocumentObject)
 ViewProviderDragger::ViewProviderDragger() = default;
 
 ViewProviderDragger::~ViewProviderDragger() = default;
-// ViewProviderDragger::ViewProviderDragger()
-//{
-//     // 构造函数中仅初始化指针，不添加场景图节点（避免 attach 前根节点未就绪）
-//     m_pTempAnnotation = nullptr;
-//     m_pTranslationSwitch = nullptr;
-//     m_pRotationSwitch = nullptr;
-//     m_pTextSwitch = nullptr;
-// }
 
-// ViewProviderDragger::~ViewProviderDragger()
-//{
-//     cleanupTempGeometry();
-// }
 
 void ViewProviderDragger::updateData(const App::Property* prop)
 {
@@ -307,32 +295,6 @@ void ViewProviderDragger::updatePlacementFromDragger(ViewProviderDragger* sudoTh
     }
     assert(numberOfFieldChanged == 1 || numberOfFieldChanged == 2);
 
-    // 3. 拖动开始时，记录物体和拖动器的起始状态
-    // if (!sudoThis->m_bIsDragging) {
-    //    sudoThis->m_vStartPos = fcPosSb;                      // 物体起始位置
-    //    sudoThis->m_rStartRot = fcRotSb;                      // 物体起始旋转
-    //    sudoThis->m_draggerStartTrans = fcPosSb;              // 拖动器起始平移
-    //    sudoThis->m_draggerStartRot = fcRotSb;                // 拖动器起始旋转
-    //    sudoThis->m_bIsDragging = true;
-    //    //return;  // 首次调用仅记录状态，不更新图形
-    //}
-
-    //// 4. 计算拖动器的变化量（判断拖动类型的核心）
-    // SbVec3f transDelta = draggerCurrentTrans - sudoThis->m_draggerStartTrans;  // 平移变化量
-    // SbRotation rotDelta = draggerCurrentRot * sudoThis->m_draggerStartRot.inverse();  //
-    // 旋转变化量
-
-    //// 5. 判断拖动类型：通过变化量的“有效程度”判断（避免浮点误差）
-    // const float EPS = 1e-6f;                         // 浮点误差阈值
-    // bool isTranslate = (transDelta.length() > EPS);  // 平移变化量大于阈值 → 平移
-    //// 通过四元数分量判断是否为单位矩阵
-    // float qx, qy, qz, qw;
-    // rotDelta.getValue(qx, qy, qz, qw);  // 获取旋转变化量的四元数分量（x,y,z,w）
-    //// 单位矩阵的四元数为 (0,0,0,1)，允许微小浮点误差
-    // bool isRotate = !(fabs(qx) < EPS && fabs(qy) < EPS && fabs(qz) < EPS && fabs(qw - 1.0f) <
-    // EPS);
-
-
     // helper lambdas.
     auto getVectorX = [&pMatrix]() {
         return Base::Vector3d(pMatrix[0], pMatrix[4], pMatrix[8]);
@@ -459,8 +421,6 @@ void ViewProviderDragger::updatePlacementFromDragger(ViewProviderDragger* sudoTh
 
         
         // 6. 计算拖动器起始的全局位置和旋转
-        // SbVec3f currentStartPos = draggerCurrentTrans - transDelta;  // 拖动器起始位置 = 当前位置
-        // - 平移变化量
         SbVec3f currentStartPos = draggerIn->getWorldStartingPoint();
         SbRotation currentStartRot =
             draggerCurrentRot * rotDelta.inverse();  // 拖动器起始旋转 = 当前旋转 / 旋转变化量
