@@ -353,96 +353,137 @@ void ViewProviderDragger::updatePlacementFromDragger(ViewProviderDragger* sudoTh
 
     if (numberOfFieldChanged == 1) {
 
-        // 判断一下当前位移方向为哪个轴的方向
-        int currentAxis = -1;
-        if (tCountX) {
-            currentAxis = 0;
-        }
-        else if (tCountY) {
-            currentAxis = 1;
-        }
-        else if (tCountZ) {
-            currentAxis = 2;
-        }
-
-        // 1. 获取 FreeCAD 物体的初始 Placement 并转换为 Coin3D 类型
-        Base::Vector3d fcPos = originalPlacement.getPosition();
-        Base::Rotation fcRot = originalPlacement.getRotation();
-        SbVec3f fcPosSb(fcPos.x, fcPos.y, fcPos.z);
-        SbRotation fcRotSb(fcRot.getValue()[0],
-                           fcRot.getValue()[1],
-                           fcRot.getValue()[2],
-                           fcRot.getValue()[3]);
-
-        // 1. 获取 FreeCAD 物体的当前 Placement 并转换为 Coin3D 类型
-        Base::Vector3d fcPosCurrent = freshPlacement.getPosition();
-        Base::Rotation fcRotCurrent = freshPlacement.getRotation();
-        SbVec3f fcPosSbCurrent(fcPosCurrent.x, fcPosCurrent.y, fcPosCurrent.z);
-        SbRotation fcRotSbCurrent(fcRotCurrent.getValue()[0],
-                                  fcRotCurrent.getValue()[1],
-                                  fcRotCurrent.getValue()[2],
-                                  fcRotCurrent.getValue()[3]);
-
-        // 记录一下物体的变化量，并储存起来供画线使用
-        SbVec3f transDelta = fcPosSbCurrent - fcPosSb;             // 平移变化量
-        sudoThis->m_lastTranslationDelta = transDelta;
-        SbRotation rotDelta = fcRotSbCurrent * fcRotSb.inverse();  // 旋转变化量
-
-        // 如果为第一次平移：直接记录当前的位移和轴
-        if (!sudoThis->m_hasLastTranslationAxis || currentAxis == -1) {
-            sudoThis->m_lastTranslationDelta = transDelta;
-            sudoThis->m_totalTranslationDelta += transDelta;
-            sudoThis->m_lastTranslationAxis = currentAxis;
-            sudoThis->m_hasLastTranslationAxis = true;
-        }
-        
-        // 如果位移方向和上次同轴，则累加位移（正向则增加，负向则减少）
-        else if (currentAxis == sudoThis->m_lastTranslationAxis) {
-            sudoThis->m_lastTranslationDelta = transDelta;
-            sudoThis->m_totalTranslationDelta += transDelta;
-        }
-
-        // 如果移动的轴方向改变了，重新设置新的
-        else {
-            sudoThis->m_lastTranslationDelta = transDelta;
-            sudoThis->m_pastTotalTranslationDelta += sudoThis->m_totalTranslationDelta;
-            sudoThis->m_totalTranslationDelta.setValue(0.0f, 0.0f, 0.0f);
-            sudoThis->m_totalTranslationDelta += transDelta;
-            sudoThis->m_lastTranslationAxis = currentAxis;
-            sudoThis->m_hasLastTranslationAxis = true;
-            // m_hasLastTranslationAxis 已经是 true，不用改
-        }
-
-        // 2. 获取拖动器当前状态（局部位置 + 全局变换矩阵）
-        SbVec3f draggerCurrentTrans = draggerIn->translation.getValue();
-        SbRotation draggerCurrentRot = draggerIn->rotation.getValue();
-        sudoThis->m_currentLocalToWorldMat =
-            draggerIn->getLocalToWorldMatrix();  // 实时全局变换矩阵
-
-        
-        // 6. 计算拖动器起始的全局位置和旋转
-        SbVec3f currentStartPos = draggerIn->getWorldStartingPoint();
-        SbRotation currentStartRot =
-            draggerCurrentRot * rotDelta.inverse();  // 拖动器起始旋转 = 当前旋转 / 旋转变化量
-        // SbVec3f rotationCenter = sudoThis->m_vStartPos;  // 旋转中心：物体起始位置（可调整）
-
-
-        if (!sudoThis->m_bIsDragging) {
-            sudoThis->m_vStartPos = fcPosSb;                                       // 物体起始位置
-            sudoThis->m_rStartRot = fcRotSb;                                       // 物体起始旋转
-            sudoThis->m_draggerStartTrans = currentStartPos;                       // 拖动器起始平移
-            sudoThis->m_draggerStartRot = currentStartRot;                         // 拖动器起始旋转
-            sudoThis->m_startLocalToWorldMat = draggerIn->getStartMotionMatrix();  // 初始全局变换
-            sudoThis->m_bIsDragging = true;
-
-        }
-
-        // 7. 根据拖动类型更新辅助图形
         if (isTranslate && !isRotate) {
+            // 判断一下当前位移方向为哪个轴的方向
+            int currentAxis = -1;
+            if (tCountX) {
+                currentAxis = 0;
+            }
+            else if (tCountY) {
+                currentAxis = 1;
+            }
+            else if (tCountZ) {
+                currentAxis = 2;
+            }
+
+            // 1. 获取 FreeCAD 物体的初始 Placement 并转换为 Coin3D 类型
+            Base::Vector3d fcPos = originalPlacement.getPosition();
+            Base::Rotation fcRot = originalPlacement.getRotation();
+            SbVec3f fcPosSb(fcPos.x, fcPos.y, fcPos.z);
+            SbRotation fcRotSb(fcRot.getValue()[0],
+                               fcRot.getValue()[1],
+                               fcRot.getValue()[2],
+                               fcRot.getValue()[3]);
+
+            // 1. 获取 FreeCAD 物体的当前 Placement 并转换为 Coin3D 类型
+            Base::Vector3d fcPosCurrent = freshPlacement.getPosition();
+            Base::Rotation fcRotCurrent = freshPlacement.getRotation();
+            SbVec3f fcPosSbCurrent(fcPosCurrent.x, fcPosCurrent.y, fcPosCurrent.z);
+            SbRotation fcRotSbCurrent(fcRotCurrent.getValue()[0],
+                                      fcRotCurrent.getValue()[1],
+                                      fcRotCurrent.getValue()[2],
+                                      fcRotCurrent.getValue()[3]);
+
+            // 记录一下物体的变化量，并储存起来供画线使用
+            SbVec3f transDelta = fcPosSbCurrent - fcPosSb;  // 平移变化量
+            sudoThis->m_lastTranslationDelta = transDelta;
+            SbRotation rotDelta = fcRotSbCurrent * fcRotSb.inverse();  // 旋转变化量
+
+            // 如果为第一次平移：直接记录当前的位移和轴
+            if (!sudoThis->m_hasLastTranslationAxis || currentAxis == -1) {
+                sudoThis->m_lastTranslationDelta = transDelta;
+                sudoThis->m_totalTranslationDelta += transDelta;
+                sudoThis->m_lastTranslationAxis = currentAxis;
+                sudoThis->m_hasLastTranslationAxis = true;
+            }
+
+            // 如果位移方向和上次同轴，则累加位移（正向则增加，负向则减少）
+            else if (currentAxis == sudoThis->m_lastTranslationAxis) {
+                sudoThis->m_lastTranslationDelta = transDelta;
+                sudoThis->m_totalTranslationDelta += transDelta;
+            }
+
+            // 如果移动的轴方向改变了，重新设置新的
+            else {
+                sudoThis->m_lastTranslationDelta = transDelta;
+                sudoThis->m_pastTotalTranslationDelta += sudoThis->m_totalTranslationDelta;
+                sudoThis->m_totalTranslationDelta.setValue(0.0f, 0.0f, 0.0f);
+                sudoThis->m_totalTranslationDelta += transDelta;
+                sudoThis->m_lastTranslationAxis = currentAxis;
+                sudoThis->m_hasLastTranslationAxis = true;
+                // m_hasLastTranslationAxis 已经是 true，不用改
+            }
+
+            // 2. 获取拖动器当前状态（局部位置 + 全局变换矩阵）
+            SbVec3f draggerCurrentTrans = draggerIn->translation.getValue();
+            SbRotation draggerCurrentRot = draggerIn->rotation.getValue();
+            sudoThis->m_currentLocalToWorldMat =
+                draggerIn->getLocalToWorldMatrix();  // 实时全局变换矩阵
+
+
+            // 6. 计算拖动器起始的全局位置和旋转
+            SbVec3f currentStartPos = draggerIn->getWorldStartingPoint();
+            SbRotation currentStartRot =
+                draggerCurrentRot * rotDelta.inverse();  // 拖动器起始旋转 = 当前旋转 / 旋转变化量
+            // SbVec3f rotationCenter = sudoThis->m_vStartPos;  // 旋转中心：物体起始位置（可调整）
+            if (!sudoThis->m_bIsDragging) {
+                sudoThis->m_vStartPos = fcPosSb;                  // 物体起始位置
+                sudoThis->m_rStartRot = fcRotSb;                  // 物体起始旋转
+                sudoThis->m_draggerStartTrans = currentStartPos;  // 拖动器起始平移
+                sudoThis->m_draggerStartRot = currentStartRot;    // 拖动器起始旋转
+                sudoThis->m_startLocalToWorldMat =
+                    draggerIn->getStartMotionMatrix();  // 初始全局变换
+                sudoThis->m_bIsDragging = true;
+            }
             // 仅平移：更新平移直线和距离标注
             sudoThis->updateTranslationGeometry(draggerIn);
         }
+
         else if (isRotate && !isTranslate) {
+            // 1. 获取 FreeCAD 物体的初始 Placement 并转换为 Coin3D 类型
+            Base::Vector3d fcPos = originalPlacement.getPosition();
+            Base::Rotation fcRot = originalPlacement.getRotation();
+            SbVec3f fcPosSb(fcPos.x, fcPos.y, fcPos.z);
+            SbRotation fcRotSb(fcRot.getValue()[0],
+                               fcRot.getValue()[1],
+                               fcRot.getValue()[2],
+                               fcRot.getValue()[3]);
+
+            // 1. 获取 FreeCAD 物体的当前 Placement 并转换为 Coin3D 类型
+            Base::Vector3d fcPosCurrent = freshPlacement.getPosition();
+            Base::Rotation fcRotCurrent = freshPlacement.getRotation();
+            SbVec3f fcPosSbCurrent(fcPosCurrent.x, fcPosCurrent.y, fcPosCurrent.z);
+            SbRotation fcRotSbCurrent(fcRotCurrent.getValue()[0],
+                                      fcRotCurrent.getValue()[1],
+                                      fcRotCurrent.getValue()[2],
+                                      fcRotCurrent.getValue()[3]);
+
+            // 记录一下物体的变化量，并储存起来供画线使用
+            SbVec3f transDelta = fcPosSbCurrent - fcPosSb;  // 平移变化量
+            sudoThis->m_lastTranslationDelta = transDelta;
+            SbRotation rotDelta = fcRotSbCurrent * fcRotSb.inverse();  // 旋转变化量
+
+            // 2. 获取拖动器当前状态（局部位置 + 全局变换矩阵）
+            SbVec3f draggerCurrentTrans = draggerIn->translation.getValue();
+            SbRotation draggerCurrentRot = draggerIn->rotation.getValue();
+            sudoThis->m_currentLocalToWorldMat =
+                draggerIn->getLocalToWorldMatrix();  // 实时全局变换矩阵
+
+
+            // 6. 计算拖动器起始的全局位置和旋转
+            SbVec3f currentStartPos = draggerIn->getWorldStartingPoint();
+            SbRotation currentStartRot =
+                draggerCurrentRot * rotDelta.inverse();  // 拖动器起始旋转 = 当前旋转 / 旋转变化量
+            // SbVec3f rotationCenter = sudoThis->m_vStartPos;  // 旋转中心：物体起始位置（可调整）
+            if (!sudoThis->m_bIsDragging) {
+                sudoThis->m_vStartPos = fcPosSb;                  // 物体起始位置
+                sudoThis->m_rStartRot = fcRotSb;                  // 物体起始旋转
+                sudoThis->m_draggerStartTrans = currentStartPos;  // 拖动器起始平移
+                sudoThis->m_draggerStartRot = currentStartRot;    // 拖动器起始旋转
+                sudoThis->m_startLocalToWorldMat =
+                    draggerIn->getStartMotionMatrix();  // 初始全局变换
+                sudoThis->m_bIsDragging = true;
+            }
             // 仅旋转：更新旋转圆弧和角度标注
             sudoThis->updateRotationGeometry(draggerCurrentRot, currentStartPos);
         }
