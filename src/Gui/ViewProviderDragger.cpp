@@ -691,8 +691,7 @@ void ViewProviderDragger::updateTranslationGeometry(SoFCCSysDragger* draggerIn)
         distance = -distance;
     }
 
-    QString dimText = QString::fromUtf8("Drag Distance: %1 mm ")
-                          .arg(distance, 0, 'f', 3);
+    QString dimText = QString::fromUtf8("Drag Distance: %1 mm ").arg(distance, 0, 'f', 3);
     m_pDimensionText->string.setValue(dimText.toUtf8().constData());
 
     // 文本位置：全局轨迹中点 + 向上偏移5mm
