@@ -779,7 +779,7 @@ void ViewProviderDragger::updateRotationGeometry(const SbRotation& currentRot,
     SbVec3f startDir(1.0f, 0.0f, 0.0f);
     for (int i = 0; i <= arcPoints; ++i) {
         float t = (float)i / arcPoints;
-        // 拆分临时实例，显式调用 multVec（成员函数）
+        // 拆分临时实例，显式调用 multVec（成员函数） 
         SbRotation stepRot(axis, t * angleRad);  // 先创建旋转实例
         // 使用输出参数版 multVec（无返回值，通过引用赋值）
         SbVec3f currentDir;                     // 声明结果向量
