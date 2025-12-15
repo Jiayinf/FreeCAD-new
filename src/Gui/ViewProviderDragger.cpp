@@ -763,7 +763,22 @@ void ViewProviderDragger::updateRotationGeometry(const SbRotation& currentRot,
 
     // 手动定义 π 常量 + 弧度转角度（零依赖，无需任何头文件）
     const float PI = 3.14159265358979323846f;   // 高精度 π 常量（足够满足可视化需求）
+    const float TWO_PI = 2.0f * PI;
+
+    // 1) 先把角度变成非负，并同步翻轴（保持等价旋转）
+    if (angleRad < 0.0f) {
+        angleRad = -angleRad;
+        axis = SbVec3f(-axis[0], -axis[1], -axis[2]);
+    }
+
+    // 2) 如果角度 > 180°，取补角，并同步翻轴（仍保持同一实际旋转）
+    if (angleRad > PI) {
+        angleRad = TWO_PI - angleRad;
+        axis = SbVec3f(-axis[0], -axis[1], -axis[2]);
+    }
+
     float angleDeg = angleRad * (180.0f / PI);  // 弧度 → 角度：角度 = 弧度 × (180/π)
+    
 
     // 通过 getValue() 获取节点，再动态转换为 SoVertexProperty*
     SoSFNode& vertexProp = m_pRotationArc->vertexProperty;
